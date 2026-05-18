@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}Dead Letters{% endblock %}
+{% block page_title %}Dead-Letter Queue{% endblock %}
+
+{% block content %}
+<div class="flex-between mb-20">
+  <span class="muted" style="font-size:.82rem">
+    Failed pipeline tasks — {{ tasks|length }} total
+    ({{ tasks|selectattr('resolved','equalto',false)|list|length }} unresolved)
+  </span>
+  <div class="flex-center gap-8">
+    <button class="btn btn-sm" onclick="resolveAll()">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+        <path d="M20 6 9 17l-5-5"/>
+      </svg>
+      Resolve All
+    </button>
+    <a href="/api/dead_letters" class="btn btn-sm btn-ghost" target="_blank">JSON</a>
+  </div>
+</div>
+
+{% if not tasks %}
+<div class="glass p-22" style="text-align:center;color:var(--muted)">
+  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+       stroke-width="1.5" style="margin:0 auto 12px;display:block;opacity:.4">
+    <path d="M20 6 9 17l-5-5"/>
+  </svg>
+  <p>No dead-letter tasks. All pipelines running clean.</p>
+</div>
+{% else %}
+<div class="glass p-22">
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>ID</th><th>Agent</th><th>Step</th>
+        <th>Article</th><th>Reason</th><th>Time</th><th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for t in tasks %}
+    <tr id="dlrow-{{ t.id }}" class="{{ '' if t.resolved else 'sg-tr' }}">
+      <td class="mono" style="color:var(--muted)">#{{ t.id }}</td>
+      <td class="mono">{{ t.agent_id }}</td>
+      <td>
+        <span class="pill pill-{{ 'red' if not t.resolved else 'green' }}">
+          {{ t.step_name }}
+        </span>
+      </td>
+      <td class="truncate" style="max-width:200px">{{ t.news_title|truncate(50) }}</td>
+      <td style="font-size:.75rem;color:var(--red);max-width:200px">{{ t.reason|truncate(60) }}</td>
+      <td class="muted" style="font-size:.7rem;white-space:nowrap">{{ t.created_at }}</td>
+      <td>
+        {% if t.resolved %}
+        <span class="pill pill-green">Resolved</span>
+        {% else %}
+        <button class="btn btn-sm btn-success" onclick="resolveOne({{ t.id }})">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M20 6 9 17l-5-5"/>
+          </svg>
+          Resolve
+        </button>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function resolveOne(id) {
+  const r = await fetch(`/api/dead_letters/resolve/${id}`, {method:'POST'});
+  const d = await r.json();
+  if (d.ok) {
+    const row = document.getElementById(`dlrow-${id}`);
+    if (row) {
+      row.querySelector('button').outerHTML =
+        '<span class="pill pill-green">Resolved</span>';
+    }
+    showToast('Task #' + id + ' resolved');
+  }
+}
+async function resolveAll() {
+  const btns = document.querySelectorAll('button[onclick^="resolveOne"]');
+  for (const btn of btns) {
+    const m = btn.getAttribute('onclick').match(/\d+/);
+    if (m) await resolveOne(parseInt(m[0]));
+  }
+}
+</script>
+{% endblock %}

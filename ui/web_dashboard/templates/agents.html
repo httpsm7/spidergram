@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+{% block title %}Agents{% endblock %}
+{% block page_title %}Agent Manager{% endblock %}
+
+{% block content %}
+<div class="flex-between mb-20">
+  <span class="muted" style="font-size:.82rem">{{ agents|length }} agent{{ 's' if agents|length != 1 }}</span>
+  <button class="btn btn-primary btn-sm" onclick="togglePanel('createPanel')">
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+      <path d="M12 5v14M5 12h14"/>
+    </svg>
+    New Agent
+  </button>
+</div>
+
+<!-- Create Agent Panel -->
+<div id="createPanel" class="glass p-22 mb-20 hidden">
+  <div class="section-title">Create New Agent</div>
+  <form method="POST" action="/agents/create">
+    <div class="form-grid mb-14">
+      <div class="form-group">
+        <label>Agent Name</label>
+        <input type="text" name="name" placeholder="CricketNewsAgent" required>
+      </div>
+      <div class="form-group">
+        <label>Niche</label>
+        <input type="text" name="niche" placeholder="Cricket News" required>
+      </div>
+      <div class="form-group col-span2">
+        <label>Prompt</label>
+        <textarea name="prompt" rows="3"
+          placeholder="You are a cricket news agent covering IPL, BCCI, and international cricket..." required></textarea>
+      </div>
+      <div class="form-group">
+        <label>Keywords (comma-separated)</label>
+        <input type="text" name="keywords" placeholder="cricket, IPL, BCCI">
+      </div>
+      <!-- API Key selection for new agent -->
+      <div class="form-group">
+        <label>Agent API Key (optional)</label>
+        <input type="text" name="api_name" id="newApiName" placeholder="API name (e.g. NEWSAPI)"
+               oninput="checkApiName(this.value)">
+        <input type="password" name="api_key" id="newApiKey" placeholder="API key value..."
+               style="margin-top:6px">
+        <div id="newApiStatus" style="font-size:.72rem;margin-top:4px;color:var(--muted)">Enter API name to validate</div>
+      </div>
+    </div>
+    <div class="flex-center gap-8">
+      <button type="submit" class="btn btn-primary btn-sm">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M20 6 9 17l-5-5"/>
+        </svg>
+        Create Agent
+      </button>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="togglePanel('createPanel')">Cancel</button>
+    </div>
+  </form>
+</div>
+
+<!-- Agent Grid -->
+<div class="agent-grid mb-20" id="agentGrid">
+  {% for a in agents %}
+  <div class="glass agent-card" id="agent-card-{{ a.id }}">
+    <div class="agent-top">
+      <div class="agent-dot {{ 'active' if a.active else 'idle' }}"></div>
+      <span class="agent-posts" style="color:{{ a.color }}">{{ a.posts_today }}</span>
+    </div>
+    <div>
+      <div class="agent-name">{{ a.name }}</div>
+      <div class="agent-niche">{{ a.niche }}</div>
+      <div style="font-size:.68rem;color:var(--muted);margin-top:3px">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px">
+          <path d="M12 8v4l3 3M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/>
+        </svg>
+        {{ a.tokens|default(1000)|int }} tokens
+      </div>
+    </div>
+
+    <!-- Edit panel -->
+    <div class="edit-panel hidden" id="edit-{{ a.id }}">
+      <form method="POST" action="/agents/edit">
+        <input type="hidden" name="agent_id" value="{{ a.id }}">
+        <div class="form-group mb-8">
+          <label>IG Account ID</label>
+          <input type="text" name="ig_user_id" value="{{ a.ig_user_id|default('') }}"
+                 placeholder="17841400...">
+        </div>
+        <div class="form-group mb-8">
+          <label>Access Token</label>
+          <input type="password" name="ig_access_token" value="{{ a.ig_access_token|default('') }}"
+                 placeholder="EAAb...">
+        </div>
+        <div class="form-group mb-8">
+          <label>Post Times (HH:MM, comma-sep)</label>
+          <input type="text" name="post_times" value="{{ a.post_times|default('09:00,15:00,20:00') }}"
+                 placeholder="09:00,15:00,20:00">
+        </div>
+
+        <!-- API Keys for this agent -->
+        <div class="api-key-section">
+          <div class="section-lbl">Agent APIs</div>
+          <div id="apiList-{{ a.id }}">
+            <div class="api-key-item">
+              <span class="api-key-name">No APIs added yet</span>
+            </div>
+          </div>
+          <div style="display:flex;gap:6px;margin-top:10px">
+            <button type="button" class="sg-icon-btn sg-btn-blue"
+                    onclick="addAgentAPI('{{ a.id }}')">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M12 5v14M5 12h14"/>
+              </svg>
+              Add API
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-success btn-sm btn-full mt-10">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v14a2 2 0 0 1-2 2Z"/>
+            <polyline points="17 21 17 13 7 13 7 21"/>
+          </svg>
+          Save Changes
+        </button>
+      </form>
+    </div>
+
+    <div class="agent-actions">
+      <button class="btn btn-primary btn-sm" style="flex:1;justify-content:center"
+              onclick="runAgent('{{ a.id }}')">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polygon points="5 3 19 12 5 21 5 3"/>
+        </svg>
+        Run
+      </button>
+      <button class="btn btn-sm btn-ghost btn-icon" onclick="togglePanel('edit-{{ a.id }}')">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5Z"/>
+        </svg>
+      </button>
+      <form method="POST" action="/agents/delete" style="margin:0">
+        <input type="hidden" name="agent_id" value="{{ a.id }}">
+        <button type="submit" class="btn btn-danger btn-sm btn-icon"
+                onclick="return confirm('Delete {{ a.name }}?')">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="3 6 5 6 21 6"/>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+          </svg>
+        </button>
+      </form>
+    </div>
+  </div>
+  {% else %}
+  <div class="glass p-22" style="grid-column:1/-1;text-align:center;color:var(--muted)">
+    No agents. <a href="#" onclick="togglePanel('createPanel')">Create your first agent →</a>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Scheduler Timeline -->
+<div class="glass p-22">
+  <div class="section-title">
+    Post Schedule Timeline
+    <span style="font-size:.72rem;color:var(--muted);font-weight:400">Today 00:00–24:00</span>
+  </div>
+  <div class="scheduler-wrap">
+    <div class="scheduler-grid">
+      <div class="scheduler-header">
+        {% for h in [0,3,6,9,12,15,18,21,24] %}
+        <div class="sched-time">{{ '%02d:00'|format(h) }}</div>
+        {% endfor %}
+      </div>
+      {% set colors = ['#0a84ff','#30d158','#ffd60a','#bf5af2','#ff9f0a','#ff453a'] %}
+      {% for a in agents %}
+      {% set col = colors[loop.index0 % colors|length] %}
+      {% set times = (a.post_times|default('09:00,15:00,20:00')).split(',') %}
+      <div class="scheduler-row">
+        <div class="sched-agent-label" title="{{ a.name }}">{{ a.name|truncate(14, killwords=True) }}</div>
+        <div class="sched-track">
+          {% for t in times %}
+          {% set parts = t.strip().split(':') %}
+          {% set hh = parts[0]|int %}
+          {% set mm = (parts[1]|int) if parts|length > 1 else 0 %}
+          {% set pct = ((hh * 60 + mm) / 1440 * 100)|round(2) %}
+          <div class="sched-block" style="left:{{ pct }}%;width:3.5%;background:{{ col }}"
+               title="{{ t.strip() }} — {{ a.name }}"></div>
+          {% endfor %}
+        </div>
+      </div>
+      {% else %}
+      <p class="muted">No agents to display.</p>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function togglePanel(id) {
+  document.getElementById(id)?.classList.toggle('hidden');
+}
+
+function checkApiName(name) {
+  const el = document.getElementById('newApiStatus');
+  if (!name) { el.textContent = 'Enter API name to validate'; el.style.color = 'var(--muted)'; return; }
+  el.textContent = 'API: ' + name.toUpperCase();
+  el.style.color = '#0a84ff';
+}
+</script>
+{% endblock %}

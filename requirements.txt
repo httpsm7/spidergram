@@ -1,0 +1,37 @@
+# Spidergram v3 - Complete Requirements
+# Install: pip install -r requirements.txt --break-system-packages
+
+# ── Core web framework ───────────────────────────────────────
+flask>=3.0.0
+python-dotenv>=1.0.0
+requests>=2.31.0
+schedule>=1.2.0
+
+# ── Database ─────────────────────────────────────────────────
+peewee>=3.17.0
+
+# ── Encryption ───────────────────────────────────────────────
+cryptography>=42.0.0
+
+# ── Video production ─────────────────────────────────────────
+moviepy>=1.0.3
+opencv-python>=4.9.0
+Pillow>=10.0.0
+ffmpeg-python>=0.2.0
+numpy>=1.25.0
+
+# ── Audio TTS ────────────────────────────────────────────────
+pyttsx3>=2.90
+
+# ── CDN / Cloud ──────────────────────────────────────────────
+cloudinary>=1.36.0
+
+# ── System monitoring ────────────────────────────────────────
+psutil>=5.9.0
+
+# ── Headless browser (image pipeline / face swap) ────────────
+playwright>=1.44.0
+# After install run: playwright install chromium
+
+# ── Optional: semantic deduplication ─────────────────────────
+# sentence-transformers>=2.6.0
